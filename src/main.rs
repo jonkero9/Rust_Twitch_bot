@@ -10,7 +10,6 @@ fn main() -> std::io::Result<()> {
     let nick = String::from("NICK jonkero\r\n");
     let join_command = String::from("JOIN #jonkero\r\n");
 
-    println!("{}{}{}", pass, nick, join_command);
     if let Ok(stream) = TcpStream::connect("irc.chat.twitch.tv:6667") {
         let mut writer = BufWriter::new(&stream);
 
