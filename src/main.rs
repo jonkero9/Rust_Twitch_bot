@@ -10,6 +10,12 @@ struct TwitchOptions<'a> {
     join_command: &'a str,
 }
 
+#[derive(Debug)]
+struct TwitchIrcMessage<'a> {
+    sender_name: &'a str,
+    message: &'a str,
+}
+
 fn main() -> std::io::Result<()> {
     let twitch_opt = TwitchOptions {
         pass: &format!("PASS oauth:{}\r\n", "dfadfa"),
@@ -51,7 +57,9 @@ fn twitch_stream_handler(stream: &TcpStream, t_opts: &TwitchOptions) {
             false
         }
         Ok(_size) => {
-            println!("{}", line);
+            if let Some(t_message) = check_message(&line) {
+                println!("{}: {}", t_message.sender_name, t_message.message);
+            }
             if let Some(pat) = check_ping(&line) {
                 write_data(
                     &mut writer,
@@ -66,6 +74,19 @@ fn twitch_stream_handler(stream: &TcpStream, t_opts: &TwitchOptions) {
             false
         }
     } {}
+}
+
+fn check_message(message: &String) -> Option<TwitchIrcMessage> {
+    if let Some(_index) = message.find("PRIVMSG") {
+        let parsed_data: Vec<&str> = message.split_whitespace().collect();
+        if parsed_data.len() == 4 {
+            return Some(TwitchIrcMessage {
+                sender_name: parsed_data.first().expect("checked len"),
+                message: parsed_data.last().expect("checked len"),
+            });
+        }
+    }
+    None
 }
 
 fn write_data(writer: &mut BufWriter<&TcpStream>, data: Vec<&[u8]>) {
