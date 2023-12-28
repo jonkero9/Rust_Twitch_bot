@@ -3,30 +3,45 @@ use std::{
     net::TcpStream,
 };
 
+#[derive(Debug)]
+struct TwitchOptions<'a> {
+    pass: &'a str,
+    nick: &'a str,
+    join_command: &'a str,
+}
+
 fn main() -> std::io::Result<()> {
-    const T_KEY: &'static str = env!("T_SEC");
+    let twitch_opt = TwitchOptions {
+        pass: &format!("PASS oauth:{}\r\n", "dfadfa"),
+        nick: "NICK jonkero\r\n",
+        join_command: "JOIN #jonkero\r\n",
+    };
+    //    const T_KEY: &'static str = env!("T_SEC");
+    //
+    //    let pass = format!("PASS oauth:{}\r\n", T_KEY);
+    //    let nick = String::from("NICK jonkero\r\n");
+    //    let join_command = String::from("JOIN #jonkero\r\n");
+    //
+    //    if let Ok(stream) = TcpStream::connect("irc.chat.twitch.tv:6667") {
+    //        twitch_stream_handler(&stream, &pass, &nick, &join_command);
+    //    }
 
-    let pass = format!("PASS oauth:{}\r\n", T_KEY);
-    let nick = String::from("NICK jonkero\r\n");
-    let join_command = String::from("JOIN #jonkero\r\n");
-
-    if let Ok(stream) = TcpStream::connect("irc.chat.twitch.tv:6667") {
-        twitch_stream_handler(&stream, &pass, &nick, &join_command);
+    if let Ok(stream) = TcpStream::connect("127.0.0.1:3333") {
+        twitch_stream_handler(&stream, &twitch_opt);
     }
-
     Ok(())
 }
 
-fn twitch_stream_handler(stream: &TcpStream, pass: &str, nick: &str, join_command: &str) {
+fn twitch_stream_handler(stream: &TcpStream, t_opts: &TwitchOptions) {
     let mut writer = BufWriter::new(stream);
-    writer.write(pass.as_bytes()).expect("error writing pass");
-    writer.flush().expect("flush err");
-    writer.write(nick.as_bytes()).expect("error writing nick");
-    writer.flush().expect("flush err");
-    writer
-        .write(join_command.as_bytes())
-        .expect("error writing join");
-    writer.flush().expect("flush err");
+    write_data(
+        &mut writer,
+        Vec::from([
+            t_opts.pass.as_bytes(),
+            t_opts.nick.as_bytes(),
+            t_opts.join_command.as_bytes(),
+        ]),
+    );
 
     let mut reader = BufReader::new(stream);
     let mut line = String::new();
@@ -37,11 +52,11 @@ fn twitch_stream_handler(stream: &TcpStream, pass: &str, nick: &str, join_comman
         }
         Ok(_size) => {
             println!("{}", line);
-            if let Some(pat) = ping_handler(&line) {
-                writer
-                    .write(format!("PONG {}\r\n", pat).as_bytes())
-                    .expect("err writing pong");
-                writer.flush().expect("err ping flush");
+            if let Some(pat) = check_ping(&line) {
+                write_data(
+                    &mut writer,
+                    Vec::from([format!("PONG {}\r\n", pat).as_bytes()]),
+                );
             }
             line.clear();
             true
@@ -53,7 +68,14 @@ fn twitch_stream_handler(stream: &TcpStream, pass: &str, nick: &str, join_comman
     } {}
 }
 
-fn ping_handler(message: &String) -> Option<&str> {
+fn write_data(writer: &mut BufWriter<&TcpStream>, data: Vec<&[u8]>) {
+    for b in data.iter() {
+        writer.write(b).expect("error writing pass");
+        writer.flush().expect("flush err");
+    }
+}
+
+fn check_ping(message: &String) -> Option<&str> {
     if let Some(_index) = message.find("PING") {
         return match message.split_once(" ") {
             Some(expr) => Some(expr.1),
