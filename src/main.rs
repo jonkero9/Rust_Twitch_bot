@@ -17,19 +17,17 @@ struct TwitchIrcMessage<'a> {
 }
 
 fn main() -> std::io::Result<()> {
+    //const T_KEY: &'static str = env!("T_SEC");
+    const T_KEY: &'static str = "dfsdf";
+
     let twitch_opt = TwitchOptions {
-        pass: &format!("PASS oauth:{}\r\n", "dfadfa"),
+        pass: &format!("PASS oauth:{}\r\n", T_KEY),
         nick: "NICK jonkero\r\n",
         join_command: "JOIN #jonkero\r\n",
     };
-    //    const T_KEY: &'static str = env!("T_SEC");
-    //
-    //    let pass = format!("PASS oauth:{}\r\n", T_KEY);
-    //    let nick = String::from("NICK jonkero\r\n");
-    //    let join_command = String::from("JOIN #jonkero\r\n");
-    //
+
     //    if let Ok(stream) = TcpStream::connect("irc.chat.twitch.tv:6667") {
-    //        twitch_stream_handler(&stream, &pass, &nick, &join_command);
+    //        twitch_stream_handler(&stream, &twitch_opt);
     //    }
 
     if let Ok(stream) = TcpStream::connect("127.0.0.1:3333") {
@@ -77,9 +75,10 @@ fn twitch_stream_handler(stream: &TcpStream, t_opts: &TwitchOptions) {
 }
 
 fn check_message(message: &String) -> Option<TwitchIrcMessage> {
-    if let Some(_index) = message.find("PRIVMSG") {
-        let parsed_data: Vec<&str> = message.split_whitespace().collect();
-        if parsed_data.len() == 4 {
+    const THE_KEY: &'static str = "PRIVMSG";
+    if let Some(_index) = message.find(THE_KEY) {
+        let parsed_data: Vec<&str> = message.split(THE_KEY).collect();
+        if parsed_data.len() >= 2 {
             return Some(TwitchIrcMessage {
                 sender_name: parsed_data.first().expect("checked len"),
                 message: parsed_data.last().expect("checked len"),
