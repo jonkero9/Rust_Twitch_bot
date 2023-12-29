@@ -94,14 +94,11 @@ fn write_data(writer: &mut BufWriter<&TcpStream>, data: Vec<&[u8]>) {
     }
 }
 
-fn check_ping(message: &String) -> Option<&str> {
-    if let Some(_index) = message.find("PING") {
-        return match message.split_once(" ") {
-            Some(expr) => Some(expr.1),
-            None => None,
-        };
-    }
-    None
+fn check_ping(message: &str) -> Option<&str> {
+    return match message.find("PING").and_then(|_x| message.split_once(" ")) {
+        Some(expr) => Some(expr.1),
+        None => None,
+    };
 }
 
 #[cfg(test)]
@@ -126,6 +123,21 @@ mod tests {
         assert_eq!(expected_sender, result.sender_name);
         assert_eq!(expected_message, result.message);
     }
-}
 
+    #[test]
+    fn check_ping_message_returned() {
+        let test_string = "PING :this.should.be.returned";
+        let expected = ":this.should.be.returned";
+        let result = check_ping(test_string).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn check_ping_none_return() {
+        assert!(check_ping("").is_none());
+        assert!(check_ping("dfadfklajdfjadfkljj").is_none());
+        assert!(check_ping("").is_none());
+    }
+}
+//
 //
