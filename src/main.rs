@@ -3,6 +3,8 @@ use std::{
     net::TcpStream,
 };
 
+use colored::Colorize;
+
 #[derive(Debug)]
 struct TwitchOptions<'a> {
     pass: &'a str,
@@ -16,9 +18,8 @@ struct TwitchIrcMessage<'a> {
     message: &'a str,
 }
 
-fn main() -> std::io::Result<()> {
-    //const T_KEY: &'static str = env!("T_SEC");
-    const T_KEY: &'static str = "dfsdf";
+fn main() {
+    const T_KEY: &'static str = env!("T_SEC");
 
     let twitch_opt = TwitchOptions {
         pass: &format!("PASS oauth:{}\r\n", T_KEY),
@@ -26,14 +27,9 @@ fn main() -> std::io::Result<()> {
         join_command: "JOIN #jonkero\r\n",
     };
 
-    //    if let Ok(stream) = TcpStream::connect("irc.chat.twitch.tv:6667") {
-    //        twitch_stream_handler(&stream, &twitch_opt);
-    //    }
-
-    if let Ok(stream) = TcpStream::connect("127.0.0.1:3333") {
+    if let Ok(stream) = TcpStream::connect("irc.chat.twitch.tv:6667") {
         twitch_stream_handler(&stream, &twitch_opt);
     }
-    Ok(())
 }
 
 fn twitch_stream_handler(stream: &TcpStream, t_opts: &TwitchOptions) {
@@ -56,7 +52,7 @@ fn twitch_stream_handler(stream: &TcpStream, t_opts: &TwitchOptions) {
         }
         Ok(_size) => {
             if let Some(t_message) = check_message(&line) {
-                println!("{}: {}", t_message.sender_name, t_message.message);
+                println!("{}: {}", t_message.sender_name.green(), t_message.message);
             }
             if let Some(pat) = check_ping(&line) {
                 write_data(
@@ -74,16 +70,19 @@ fn twitch_stream_handler(stream: &TcpStream, t_opts: &TwitchOptions) {
     } {}
 }
 
-fn check_message(message: &String) -> Option<TwitchIrcMessage> {
+fn check_message(message: &str) -> Option<TwitchIrcMessage> {
     const THE_KEY: &'static str = "PRIVMSG";
-    if let Some(_index) = message.find(THE_KEY) {
-        let parsed_data: Vec<&str> = message.split(THE_KEY).collect();
-        if parsed_data.len() >= 2 {
-            return Some(TwitchIrcMessage {
-                sender_name: parsed_data.first().expect("checked len"),
-                message: parsed_data.last().expect("checked len"),
-            });
-        }
+    if let Some(t_message) = message.split_once(THE_KEY) {
+        let delin_index = t_message.0.find("!").unwrap_or(t_message.0.len());
+        let sender_chunk = &t_message.0[1..delin_index].trim();
+
+        let delin_index = t_message.1.find(":").unwrap_or(0) + 1;
+        let message_chunk = &t_message.1[delin_index..].trim();
+
+        return Some(TwitchIrcMessage {
+            sender_name: sender_chunk,
+            message: message_chunk,
+        });
     }
     None
 }
@@ -104,3 +103,29 @@ fn check_ping(message: &String) -> Option<&str> {
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_message_edge_cases() {
+        let test_string = "";
+        assert!(check_message(test_string).is_none());
+        let test_string = "dfadfadfadfadf adfadfadf adfad";
+        assert!(check_message(test_string).is_none());
+    }
+
+    #[test]
+    fn check_message_message_parsed() {
+        let test_string = ":foo!foo@foo.tmi.twitch.tv PRIVMSG #bar \
+                           :bleedPurple spider, metensis future 0x29  ";
+        let expected_sender = "foo";
+        let expected_message = "bleedPurple spider, metensis future 0x29";
+        let result = check_message(test_string).unwrap();
+        assert_eq!(expected_sender, result.sender_name);
+        assert_eq!(expected_message, result.message);
+    }
+}
+
+//
