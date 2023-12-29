@@ -1,10 +1,10 @@
+use colored::{ColoredString, Colorize};
+use rand::Rng;
 use std::{
+    collections::HashMap,
     io::{BufRead, BufReader, BufWriter, Write},
     net::TcpStream,
 };
-
-use colored::{ColoredString, Colorize};
-use rand::Rng;
 
 #[derive(Debug)]
 struct TwitchOptions<'a> {
@@ -24,6 +24,8 @@ const PING_KEY: &'static str = "PING";
 const T_KEY: &'static str = env!("T_SEC");
 
 fn main() {
+    let mut user_map: HashMap<String, i32> = HashMap::new();
+
     let twitch_opt = TwitchOptions {
         pass: &format!("PASS oauth:{}\r\n", T_KEY),
         nick: "NICK jonkero\r\n",
@@ -31,11 +33,15 @@ fn main() {
     };
 
     if let Ok(stream) = TcpStream::connect("irc.chat.twitch.tv:6667") {
-        twitch_stream_handler(&stream, &twitch_opt);
+        twitch_stream_handler(&stream, &twitch_opt, &mut user_map);
     }
 }
 
-fn twitch_stream_handler(stream: &TcpStream, t_opts: &TwitchOptions) {
+fn twitch_stream_handler(
+    stream: &TcpStream,
+    t_opts: &TwitchOptions,
+    user_map: &mut HashMap<String, i32>,
+) {
     let mut writer = BufWriter::new(stream);
     write_data(
         &mut writer,
@@ -54,19 +60,7 @@ fn twitch_stream_handler(stream: &TcpStream, t_opts: &TwitchOptions) {
             false
         }
         Ok(_size) => {
-            if let Some(t_message) = check_message(&line) {
-                println!(
-                    "{}: {}",
-                    colorize_string_randomly(t_message.sender_name),
-                    t_message.message
-                );
-            }
-            if let Some(pat) = check_ping(&line) {
-                write_data(
-                    &mut writer,
-                    Vec::from([format!("PONG {}\r\n", pat).as_bytes()]),
-                );
-            }
+            handle_messages(&line, &mut writer, user_map);
             line.clear();
             true
         }
@@ -75,6 +69,32 @@ fn twitch_stream_handler(stream: &TcpStream, t_opts: &TwitchOptions) {
             false
         }
     } {}
+}
+
+fn handle_messages(
+    line: &str,
+    writer: &mut BufWriter<&TcpStream>,
+    user_map: &mut HashMap<String, i32>,
+) {
+    if let Some(t_message) = check_message(&line) {
+        if !user_map.contains_key(t_message.sender_name) {
+            user_map.insert(
+                t_message.sender_name.to_string(),
+                rand::thread_rng().gen_range(1..5),
+            );
+        }
+        println!(
+            "{}: {}",
+            colorize_string_randomly(
+                t_message.sender_name,
+                *user_map.get(t_message.sender_name).unwrap_or(&0)
+            ),
+            t_message.message
+        );
+    }
+    if let Some(pat) = check_ping(&line) {
+        write_data(writer, Vec::from([format!("PONG {}\r\n", pat).as_bytes()]));
+    }
 }
 
 fn check_message(message: &str) -> Option<TwitchIrcMessage> {
@@ -110,9 +130,8 @@ fn check_ping(message: &str) -> Option<&str> {
     };
 }
 
-fn colorize_string_randomly(s: &str) -> ColoredString {
-    let random = rand::thread_rng().gen_range(1..5);
-    match random {
+fn colorize_string_randomly(s: &str, color_code: i32) -> ColoredString {
+    match color_code {
         1 => return s.blue(),
         2 => return s.green(),
         3 => return s.yellow(),
