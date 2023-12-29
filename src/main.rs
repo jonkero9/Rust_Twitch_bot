@@ -3,7 +3,8 @@ use std::{
     net::TcpStream,
 };
 
-use colored::Colorize;
+use colored::{ColoredString, Colorize};
+use rand::Rng;
 
 #[derive(Debug)]
 struct TwitchOptions<'a> {
@@ -18,9 +19,11 @@ struct TwitchIrcMessage<'a> {
     message: &'a str,
 }
 
-fn main() {
-    const T_KEY: &'static str = env!("T_SEC");
+const PRIVATE_MSG_KEY: &'static str = "PRIVMSG";
+const PING_KEY: &'static str = "PING";
+const T_KEY: &'static str = env!("T_SEC");
 
+fn main() {
     let twitch_opt = TwitchOptions {
         pass: &format!("PASS oauth:{}\r\n", T_KEY),
         nick: "NICK jonkero\r\n",
@@ -52,7 +55,11 @@ fn twitch_stream_handler(stream: &TcpStream, t_opts: &TwitchOptions) {
         }
         Ok(_size) => {
             if let Some(t_message) = check_message(&line) {
-                println!("{}: {}", t_message.sender_name.green(), t_message.message);
+                println!(
+                    "{}: {}",
+                    colorize_string_randomly(t_message.sender_name),
+                    t_message.message
+                );
             }
             if let Some(pat) = check_ping(&line) {
                 write_data(
@@ -71,8 +78,7 @@ fn twitch_stream_handler(stream: &TcpStream, t_opts: &TwitchOptions) {
 }
 
 fn check_message(message: &str) -> Option<TwitchIrcMessage> {
-    const THE_KEY: &'static str = "PRIVMSG";
-    if let Some(t_message) = message.split_once(THE_KEY) {
+    if let Some(t_message) = message.split_once(PRIVATE_MSG_KEY) {
         let delin_index = t_message.0.find("!").unwrap_or(t_message.0.len());
         let sender_chunk = &t_message.0[1..delin_index].trim();
 
@@ -95,10 +101,24 @@ fn write_data(writer: &mut BufWriter<&TcpStream>, data: Vec<&[u8]>) {
 }
 
 fn check_ping(message: &str) -> Option<&str> {
-    return match message.find("PING").and_then(|_x| message.split_once(" ")) {
+    return match message
+        .find(PING_KEY)
+        .and_then(|_x| message.split_once(" "))
+    {
         Some(expr) => Some(expr.1),
         None => None,
     };
+}
+
+fn colorize_string_randomly(s: &str) -> ColoredString {
+    let random = rand::thread_rng().gen_range(1..5);
+    match random {
+        1 => return s.blue(),
+        2 => return s.green(),
+        3 => return s.yellow(),
+        4 => return s.red(),
+        _ => return s.blue(),
+    }
 }
 
 #[cfg(test)]
