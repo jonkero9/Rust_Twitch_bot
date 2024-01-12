@@ -6,9 +6,9 @@ use std::{
     net::TcpStream,
 };
 
-const PRIVATE_MSG_KEY: &'static str = "PRIVMSG";
-const PING_KEY: &'static str = "PING";
-const TWITCH_IRC_URL: &'static str = "irc.chat.twitch.tv:6667";
+const PRIVATE_MSG_KEY: &str = "PRIVMSG";
+const PING_KEY: &str = "PING";
+const TWITCH_IRC_URL: &str = "irc.chat.twitch.tv:6667";
 
 #[derive(Debug)]
 pub struct TwitchOptions {
@@ -65,7 +65,7 @@ fn twitch_stream_handler(
 
 fn write_data(writer: &mut BufWriter<&TcpStream>, data: Vec<&[u8]>) {
     for b in data.iter() {
-        writer.write(b).expect("error writing pass");
+        let _ = writer.write_all(b);
         writer.flush().expect("flush err");
     }
 }
@@ -75,7 +75,7 @@ fn handle_messages(
     writer: &mut BufWriter<&TcpStream>,
     user_map: &mut HashMap<String, i32>,
 ) {
-    if let Some(t_message) = check_message(&line) {
+    if let Some(t_message) = check_message(line) {
         if !user_map.contains_key(&t_message.sender_name) {
             user_map.insert(
                 t_message.sender_name.to_string(),
@@ -91,17 +91,17 @@ fn handle_messages(
             t_message.message
         );
     }
-    if let Some(pat) = check_ping(&line) {
+    if let Some(pat) = check_ping(line) {
         write_data(writer, Vec::from([format!("PONG {}\r\n", pat).as_bytes()]));
     }
 }
 
 fn check_message(message: &str) -> Option<TwitchIrcMessage> {
     if let Some(t_message) = message.split_once(PRIVATE_MSG_KEY) {
-        let delin_index = t_message.0.find("!").unwrap_or(t_message.0.len());
+        let delin_index = t_message.0.find('!').unwrap_or(t_message.0.len());
         let sender_chunk = &t_message.0[1..delin_index].trim();
 
-        let delin_index = t_message.1.find(":").unwrap_or(0) + 1;
+        let delin_index = t_message.1.find(':').unwrap_or(0) + 1;
         let message_chunk = &t_message.1[delin_index..].trim();
 
         return Some(TwitchIrcMessage {
@@ -115,7 +115,7 @@ fn check_message(message: &str) -> Option<TwitchIrcMessage> {
 fn check_ping(message: &str) -> Option<&str> {
     return match message
         .find(PING_KEY)
-        .and_then(|_x| message.split_once(" "))
+        .and_then(|_x| message.split_once(' '))
     {
         Some(expr) => Some(expr.1),
         None => None,
@@ -124,15 +124,15 @@ fn check_ping(message: &str) -> Option<&str> {
 
 fn colorize_string(s: &str, color_code: i32) -> ColoredString {
     match color_code {
-        0 => return s.blue(),
-        1 => return s.green(),
-        2 => return s.yellow(),
-        3 => return s.red(),
-        4 => return s.purple(),
-        5 => return s.cyan(),
-        6 => return s.magenta(),
-        7 => return s.white(),
-        _ => return s.blue(),
+        0 => s.blue(),
+        1 => s.green(),
+        2 => s.yellow(),
+        3 => s.red(),
+        4 => s.purple(),
+        5 => s.cyan(),
+        6 => s.magenta(),
+        7 => s.white(),
+        _ => s.blue(),
     }
 }
 

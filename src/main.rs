@@ -31,7 +31,7 @@ use j_twitch::TwitchOptions;
 use std::collections::HashMap;
 pub mod j_twitch;
 
-const T_KEY: &'static str = env!("T_SEC");
+const T_KEY: &str = env!("T_SEC");
 
 fn main() {
     let mut user_map: HashMap<String, i32> = HashMap::new();
