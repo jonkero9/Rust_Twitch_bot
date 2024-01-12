@@ -34,8 +34,6 @@
     - !Changecolor command 
     - !ShowMyColor command
 
-- Emoji Showing
-
 - storing user color keys in sqlite
 
 - sqlite 
@@ -43,4 +41,3 @@
     - views can set own color and store
 
 
-- test

@@ -6,6 +6,9 @@ use std::{
     net::TcpStream,
 };
 
+use crate::j_twitch::chat_colors::ChatColor;
+pub mod chat_colors;
+
 const PRIVATE_MSG_KEY: &str = "PRIVMSG";
 const PING_KEY: &str = "PING";
 const TWITCH_IRC_URL: &str = "irc.chat.twitch.tv:6667";
@@ -79,14 +82,14 @@ fn handle_messages(
         if !user_map.contains_key(&t_message.sender_name) {
             user_map.insert(
                 t_message.sender_name.to_string(),
-                rand::thread_rng().gen_range(0..8),
+                rand::thread_rng().gen_range(0..8), //todo
             );
         }
         println!(
             "{}: {}",
-            colorize_string(
+            ChatColor::to(
                 &t_message.sender_name,
-                *user_map.get(&t_message.sender_name).unwrap_or(&0)
+                ChatColor::from(*user_map.get(&t_message.sender_name).unwrap_or(&0))
             ),
             t_message.message
         );
@@ -120,20 +123,6 @@ fn check_ping(message: &str) -> Option<&str> {
         Some(expr) => Some(expr.1),
         None => None,
     };
-}
-
-fn colorize_string(s: &str, color_code: i32) -> ColoredString {
-    match color_code {
-        0 => s.blue(),
-        1 => s.green(),
-        2 => s.yellow(),
-        3 => s.red(),
-        4 => s.purple(),
-        5 => s.cyan(),
-        6 => s.magenta(),
-        7 => s.white(),
-        _ => s.blue(),
-    }
 }
 
 #[cfg(test)]
