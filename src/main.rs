@@ -36,16 +36,16 @@ use std::{
 };
 
 #[derive(Debug)]
-struct TwitchOptions<'a> {
-    pass: &'a str,
-    nick: &'a str,
-    join_command: &'a str,
+struct TwitchOptions {
+    pass: String,
+    nick: String,
+    join_command: String,
 }
 
 #[derive(Debug)]
-struct TwitchIrcMessage<'a> {
-    sender_name: &'a str,
-    message: &'a str,
+struct TwitchIrcMessage {
+    sender_name: String,
+    message: String,
 }
 
 const PRIVATE_MSG_KEY: &'static str = "PRIVMSG";
@@ -54,13 +54,11 @@ const T_KEY: &'static str = env!("T_SEC");
 
 fn main() {
     let mut user_map: HashMap<String, i32> = HashMap::new();
-
     let twitch_opt = TwitchOptions {
-        pass: &format!("PASS oauth:{}\r\n", T_KEY),
-        nick: "NICK jonkero\r\n",
-        join_command: "JOIN #jonkero\r\n",
+        pass: format!("PASS oauth:{}\r\n", T_KEY),
+        nick: "NICK jonkero\r\n".to_string(),
+        join_command: "JOIN #jonkero\r\n".to_string(),
     };
-
     if let Ok(stream) = TcpStream::connect("irc.chat.twitch.tv:6667") {
         twitch_stream_handler(&stream, &twitch_opt, &mut user_map);
     }
@@ -106,17 +104,17 @@ fn handle_messages(
     user_map: &mut HashMap<String, i32>,
 ) {
     if let Some(t_message) = check_message(&line) {
-        if !user_map.contains_key(t_message.sender_name) {
+        if !user_map.contains_key(&t_message.sender_name) {
             user_map.insert(
                 t_message.sender_name.to_string(),
-                rand::thread_rng().gen_range(1..5),
+                rand::thread_rng().gen_range(0..8),
             );
         }
         println!(
             "{}: {}",
-            colorize_string_randomly(
-                t_message.sender_name,
-                *user_map.get(t_message.sender_name).unwrap_or(&0)
+            colorize_string(
+                &t_message.sender_name,
+                *user_map.get(&t_message.sender_name).unwrap_or(&0)
             ),
             t_message.message
         );
@@ -135,8 +133,8 @@ fn check_message(message: &str) -> Option<TwitchIrcMessage> {
         let message_chunk = &t_message.1[delin_index..].trim();
 
         return Some(TwitchIrcMessage {
-            sender_name: sender_chunk,
-            message: message_chunk,
+            sender_name: sender_chunk.to_string(),
+            message: message_chunk.to_string(),
         });
     }
     None
@@ -159,12 +157,16 @@ fn check_ping(message: &str) -> Option<&str> {
     };
 }
 
-fn colorize_string_randomly(s: &str, color_code: i32) -> ColoredString {
+fn colorize_string(s: &str, color_code: i32) -> ColoredString {
     match color_code {
-        1 => return s.blue(),
-        2 => return s.green(),
-        3 => return s.yellow(),
-        4 => return s.red(),
+        0 => return s.blue(),
+        1 => return s.green(),
+        2 => return s.yellow(),
+        3 => return s.red(),
+        4 => return s.purple(),
+        5 => return s.cyan(),
+        6 => return s.magenta(),
+        7 => return s.white(),
         _ => return s.blue(),
     }
 }
@@ -191,6 +193,13 @@ mod tests {
         assert_eq!(expected_sender, result.sender_name);
         assert_eq!(expected_message, result.message);
     }
+
+    //     #[test]
+    //     fn print_test() {
+    //         for pat in 0..8 {
+    //             println!("{}: {}", pat, colorize_string("Hello Chat", pat));
+    //         }
+    //     }
 
     #[test]
     fn check_ping_message_returned() {
